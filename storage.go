@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strconv"
 	"time"
 )
 
@@ -16,8 +17,9 @@ type Storage interface {
 // ServiceSpec represent the specification of a service
 type ServiceSpec struct {
 	ID      identifier
-	Address string
+	Host    string
 	Port    int
+	Address string
 	Tags    []string
 
 	Healthcheck       bool
@@ -38,22 +40,25 @@ func NewStorage() Storage {
 	}
 }
 
-func (s *storage) Register(address string, port int, tags []string, additional interface{}) (identifier, error) {
+func (s *storage) Register(host string, port int, tags []string, additional interface{}) (identifier, error) {
 	id := NewID()
 	service := ServiceSpec{
 		ID:         id,
-		Address:    address,
+		Host:       host,
 		Port:       port,
+		Address:    host + ":" + strconv.Itoa(port),
 		Tags:       tags,
 		Additional: additional,
 	}
 	s.services[id] = service
 	return id, nil
 }
+
 func (s *storage) Deregister(id identifier) error {
 	delete(s.services, id)
 	return nil
 }
+
 func (s *storage) Service(id identifier) (ServiceSpec, error) {
 	service, ok := s.services[id]
 	if !ok {
@@ -61,9 +66,11 @@ func (s *storage) Service(id identifier) (ServiceSpec, error) {
 	}
 	return service, nil
 }
+
 func (s *storage) Services() map[identifier]ServiceSpec {
 	return s.services
 }
+
 func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func() error) error {
 	// Check service before setup healthcheck
 	err := f()
@@ -84,6 +91,7 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 
 	return nil
 }
+
 func (s *storage) Healthcheck(id identifier) error {
 	if s.services[id].Healthcheck {
 		return s.services[id].HealthcheckFunc()
