@@ -72,3 +72,49 @@ func (r *DeregisterResponse) prepare() []byte {
 
 	return append(resp, []byte(delimiter)...)
 }
+
+type ServiceRequest struct {
+	Address string   `json:"address"`
+	Port    int      `json:"port"`
+	Tags    []string `json:"tags"`
+}
+
+type ServiceResponse struct {
+	Success bool           `json:"success"`
+	Error   string         `json:"error"`
+	Meta    ServiceRequest `json:"meta"`
+	Service ServiceSpec    `json:"service"`
+}
+
+// prepare the response
+func (r *ServiceResponse) prepare() []byte {
+	resp, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+
+	return append(resp, []byte(delimiter)...)
+}
+
+type ServicesRequest struct {
+	Address string   `json:"address"`
+	Port    int      `json:"port"`
+	Tags    []string `json:"tags"`
+}
+
+type ServicesResponse struct {
+	Success  bool           `json:"success"`
+	Error    string         `json:"error"`
+	Meta     ServiceRequest `json:"meta"`
+	Services []ServiceSpec  `json:"services"`
+}
+
+// prepare the response
+func (r *ServicesResponse) prepare() []byte {
+	resp, err := json.Marshal(r)
+	if err != nil {
+		panic(err)
+	}
+
+	return append(resp, []byte(delimiter)...)
+}

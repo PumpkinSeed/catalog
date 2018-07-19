@@ -16,16 +16,16 @@ type Storage interface {
 
 // ServiceSpec represent the specification of a service
 type ServiceSpec struct {
-	ID      identifier
-	Host    string
-	Port    int
-	Address string
-	Tags    []string
+	ID      identifier `json:"id"`
+	Host    string     `json:"host"`
+	Port    int        `json:"port"`
+	Address string     `json:"address"`
+	Tags    []string   `json:"tags"`
 
-	Healthcheck       bool
-	HealthcheckFunc   func() error
-	HealthcheckPeriod time.Duration
-	IsAlive           bool
+	Healthcheck       bool          `json:"healthcheck"`
+	HealthcheckFunc   func() error  `json:"-"`
+	HealthcheckPeriod time.Duration `json:"healthcheck_period"`
+	IsAlive           bool          `json:"is_alive"`
 
 	Additional interface{}
 }
