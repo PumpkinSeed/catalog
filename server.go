@@ -17,6 +17,7 @@ const (
 )
 
 const delimiter = "\n"
+const delimiterByte = '\n'
 
 // Server represent the standalone service
 type Server interface {
@@ -166,14 +167,34 @@ func (s *server) handleRequest(reqByte []byte) ([]byte, error) {
 }
 
 func (s *server) register(req *RegisterRequest, resp *RegisterResponse) error {
-	return nil
+	id, err := s.storage.Register(req.Address, req.Port, req.Tags, req.Additional)
+	resp.Meta = *req
+	if err != nil {
+		resp.Error = err.Error()
+		resp.Success = false
+		return err
+	}
+
+	resp.ID = id
+	resp.Success = true
+	return err
 }
 
 func (s *server) deregister(req *DeregisterRequest, resp *DeregisterResponse) error {
+	err := s.storage.Deregister(req.ID)
+	resp.Meta = *req
+	if err != nil {
+		resp.Error = err.Error()
+		resp.Success = false
+		return err
+	}
+
+	resp.Success = true
 	return nil
 }
 
 func (s *server) service(req *ServiceRequest, resp *ServiceResponse) error {
+	// @TODO filter service s.storage.Service(req.)
 	return nil
 }
 

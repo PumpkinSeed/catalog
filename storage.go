@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -31,6 +32,7 @@ type ServiceSpec struct {
 }
 
 type storage struct {
+	sync.RWMutex
 	services map[identifier]ServiceSpec
 }
 
@@ -41,6 +43,8 @@ func NewStorage() Storage {
 }
 
 func (s *storage) Register(host string, port int, tags []string, additional interface{}) (identifier, error) {
+	s.Lock()
+	defer s.Unlock()
 	id := NewID()
 	service := ServiceSpec{
 		ID:         id,
@@ -55,12 +59,16 @@ func (s *storage) Register(host string, port int, tags []string, additional inte
 }
 
 func (s *storage) Deregister(id identifier) error {
+	s.Lock()
+	defer s.Unlock()
 	delete(s.services, id)
 	return nil
 }
 
 func (s *storage) Service(id identifier) (ServiceSpec, error) {
+	s.RLock()
 	service, ok := s.services[id]
+	s.RUnlock()
 	if !ok {
 		return ServiceSpec{}, ErrUndefinedService
 	}
@@ -68,6 +76,8 @@ func (s *storage) Service(id identifier) (ServiceSpec, error) {
 }
 
 func (s *storage) Services() map[identifier]ServiceSpec {
+	s.RLock()
+	defer s.RUnlock()
 	return s.services
 }
 
