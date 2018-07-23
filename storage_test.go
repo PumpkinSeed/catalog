@@ -27,27 +27,27 @@ func TestStorage(t *testing.T) {
 		}
 	}()
 
-	storage := NewStorage()
+	storage := NewStorage(nil)
 	id, err := storage.Register("webserver", "localhost", httpPort, []string{"http", "web"}, nil)
 
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = storage.SetupHealthcheck(id, 1*time.Second, func() error {
+	err = storage.SetupHealthcheck(id, 1*time.Second, func() (bool, error) {
 		service, err := storage.Service(&id, nil)
 		conn, err := net.Dial("tcp", service.Address)
 		if err != nil {
-			return fmt.Errorf("connection error: %s", err.Error())
+			return false, fmt.Errorf("connection error: %s", err.Error())
 		}
 		defer conn.Close()
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = storage.Healthcheck(id)
+	err = storage.Healthcheck()
 	if err != nil {
 		t.Error(err)
 	}
@@ -61,7 +61,7 @@ func TestStorage(t *testing.T) {
 		t.Errorf("Address shoudl be localhost:8082, instead of %s", service.Address)
 	}
 
-	err = storage.Deregister(id)
+	err = storage.Deregister(&id, nil)
 	if err != nil {
 		t.Error(err)
 	}

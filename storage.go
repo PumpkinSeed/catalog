@@ -8,11 +8,11 @@ import (
 
 type Storage interface {
 	Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error)
-	Deregister(id identifier) error
+	Deregister(id *identifier, name *string) error
 	Service(id *identifier, name *string) (ServiceSpec, error)
 	Services() map[identifier]ServiceSpec
-	SetupHealthcheck(id identifier, period time.Duration, f func() error) error
-	Healthcheck(id identifier) error
+	SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error
+	Healthcheck() error
 }
 
 // ServiceSpec represent the specification of a service
@@ -24,31 +24,40 @@ type ServiceSpec struct {
 	Address string     `json:"address"`
 	Tags    []string   `json:"tags"`
 
-	Healthcheck       bool          `json:"healthcheck"`
-	HealthcheckFunc   func() error  `json:"-"`
-	HealthcheckPeriod time.Duration `json:"healthcheck_period"`
-	IsAlive           bool          `json:"is_alive"`
+	Healthcheck       bool                 `json:"healthcheck"`
+	HealthcheckFunc   func() (bool, error) `json:"-"`
+	HealthcheckPeriod time.Duration        `json:"healthcheck_period"`
+	IsAlive           bool                 `json:"is_alive"`
 
 	Additional interface{}
 }
 
 type storage struct {
 	sync.RWMutex
-	services map[identifier]ServiceSpec
+	services           map[identifier]ServiceSpec
+	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
 }
 
-func NewStorage() Storage {
+func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error))) Storage {
 	return &storage{
-		services: make(map[identifier]ServiceSpec),
+		services:           make(map[identifier]ServiceSpec),
+		healthcheckStorage: healthcheckStorage,
 	}
 }
 
 func (s *storage) Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error) {
+	var hcFunc func() (bool, error)
+	var period time.Duration
+	if s.healthcheckStorage != nil {
+		period, hcFunc = s.healthcheckStorage(name)
+	}
 	s.Lock()
 	defer s.Unlock()
+
 	id := NewID()
 	service := ServiceSpec{
 		ID:         id,
+		Name:       name,
 		Host:       host,
 		Port:       port,
 		Address:    host + ":" + strconv.Itoa(port),
@@ -56,19 +65,43 @@ func (s *storage) Register(name string, host string, port int, tags []string, ad
 		Additional: additional,
 	}
 	s.services[id] = service
+
+	s.SetupHealthcheck(id, period, hcFunc)
 	return id, nil
 }
 
-func (s *storage) Deregister(id identifier) error {
+func (s *storage) Deregister(id *identifier, name *string) error {
 	s.Lock()
 	defer s.Unlock()
-	delete(s.services, id)
-	return nil
+
+	// ID first manner
+	if id != nil {
+		delete(s.services, *id)
+		return nil
+	} else if name != nil {
+		ss := s.findByName(*name)
+		delete(s.services, ss.ID)
+		return nil
+	}
+
+	return ErrServiceRequestInvalid
 }
 
 func (s *storage) Service(id *identifier, name *string) (ServiceSpec, error) {
+	var service ServiceSpec
+	var ok bool
+
 	s.RLock()
-	service, ok := s.services[*id]
+
+	// ID first manner
+	if id != nil {
+		service, ok = s.services[*id]
+	} else if name != nil {
+		ss := s.findByName(*name)
+		service, ok = s.services[ss.ID]
+	} else {
+		return service, ErrServiceRequestInvalid
+	}
 	s.RUnlock()
 	if !ok {
 		return ServiceSpec{}, ErrUndefinedService
@@ -82,9 +115,12 @@ func (s *storage) Services() map[identifier]ServiceSpec {
 	return s.services
 }
 
-func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func() error) error {
+func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error {
 	// Check service before setup healthcheck
-	err := f()
+	if f == nil {
+		return nil
+	}
+	alive, err := f()
 	if err != nil {
 		return err
 	}
@@ -92,6 +128,9 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 	service, ok := s.services[id]
 	if !ok {
 		return ErrUndefinedService
+	}
+	if alive {
+		service.IsAlive = true
 	}
 
 	service.Healthcheck = true
@@ -103,11 +142,8 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 	return nil
 }
 
-func (s *storage) Healthcheck(id identifier) error {
-	if s.services[id].Healthcheck {
-		return s.services[id].HealthcheckFunc()
-	}
-	return nil
+func (s *storage) Healthcheck() error {
+	return healthcheck(&s.services)
 }
 
 func (s *storage) findByName(name string) *ServiceSpec {

@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"time"
 )
 
 type command uint8
@@ -27,17 +29,16 @@ type Server interface {
 
 // server is the main handler struct
 type server struct {
+	// add logger
 	bindAddr string
 	storage  Storage
-	//services map[identifier]ServiceSpec
-	closeCh chan bool
+	closeCh  chan bool
 }
 
-func NewServer(bindAddr string) Server {
+func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error))) Server {
 	closeCh := make(chan bool, 1)
 	s := new(server)
-	//s.services = make(map[identifier]ServiceSpec)
-	s.storage = NewStorage()
+	s.storage = NewStorage(healthcheckStorage)
 	s.bindAddr = bindAddr
 	s.closeCh = closeCh
 
@@ -47,13 +48,7 @@ func NewServer(bindAddr string) Server {
 func (s *server) Listen() error {
 	ln, err := net.Listen("tcp", s.bindAddr)
 	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	conn, err := ln.Accept()
-	if err != nil {
-		fmt.Println(err)
+		fmt.Println("0", err)
 		return err
 	}
 
@@ -65,26 +60,32 @@ func (s *server) Listen() error {
 		default:
 		}
 
-		msg, err := bufio.NewReader(conn).ReadBytes('\n')
-		if err != nil {
-			fmt.Println(err)
+		conn, err := ln.Accept()
+		if err != nil && err != io.EOF {
+			fmt.Println("1", err)
 			return err
 		}
 
-		fmt.Print("Message Received:", string(msg))
+		msg, err := bufio.NewReader(conn).ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			fmt.Println("2", err)
+			return err
+		}
+
+		//fmt.Print("Message Received:", string(msg))
 
 		resp, err := s.handleRequest(msg)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("3", err)
 			return err
 		}
 
-		n, err := conn.Write(resp)
+		_, err = conn.Write(resp)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("4", err)
 			return err
 		}
-		fmt.Printf("Bytes written: %d\n", n)
+		//fmt.Printf("Bytes written: %d\n", n)
 	}
 
 	return nil
@@ -197,7 +198,7 @@ func (s *server) register(req *RegisterRequest, resp *RegisterResponse) error {
 }
 
 func (s *server) deregister(req *DeregisterRequest, resp *DeregisterResponse) error {
-	err := s.storage.Deregister(req.ID)
+	err := s.storage.Deregister(req.ID, req.Name)
 	resp.Meta = *req
 	if err != nil {
 		resp.Error = err.Error()
@@ -214,10 +215,8 @@ func (s *server) service(req *ServiceRequest, resp *ServiceResponse) error {
 	var err error
 
 	// ID first manner
-	if req.ID != nil {
-		ss, err = s.storage.Service(req.ID, nil)
-	} else if req.Name != nil {
-		ss, err = s.storage.Service(nil, req.Name)
+	if req.ID != nil || req.Name != nil {
+		ss, err = s.storage.Service(req.ID, req.Name)
 	} else {
 		resp.Error = ErrServiceRequestInvalid.Error()
 		resp.Success = false

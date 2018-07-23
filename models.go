@@ -54,8 +54,8 @@ func (r *RegisterResponse) prepare() []byte {
 
 // DeregisterRequest represent the deregister request to the server
 type DeregisterRequest struct {
-	ID   identifier `json:"id"`
-	Name string     `json:"name"`
+	ID   *identifier `json:"id"`
+	Name *string     `json:"name"`
 }
 
 // DeregisterResponse represent the deregister response to the server

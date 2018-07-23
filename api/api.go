@@ -13,12 +13,11 @@ type Catalog interface {
 }
 
 type catalog struct {
-	services map[uint]service
+	addr string
 }
 
-type service struct {
-	ID   uint
-	Node string
+func NewCatalog(addr string) Catalog {
+	return &catalog{addr: addr}
 }
 
 func (c *catalog) Register(req *api.CatalogRegistration, q *api.WriteOptions) (*api.WriteMeta, error) {
