@@ -118,7 +118,11 @@ func (s *server) handleRequest(reqByte []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		resp.Resp = registerResp
+		respJSON, err := json.Marshal(registerResp)
+		if err != nil {
+			return nil, err
+		}
+		resp = NewResponse(respJSON)
 	case Deregister:
 		var deregisterReq DeregisterRequest
 		err = json.Unmarshal([]byte(req.Req), &deregisterReq)
@@ -132,7 +136,11 @@ func (s *server) handleRequest(reqByte []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		resp.Resp = deregisterResp
+		respJSON, err := json.Marshal(deregisterResp)
+		if err != nil {
+			return nil, err
+		}
+		resp = NewResponse(respJSON)
 	case Service:
 		var serviceReq ServiceRequest
 		err = json.Unmarshal([]byte(req.Req), &serviceReq)
@@ -146,7 +154,11 @@ func (s *server) handleRequest(reqByte []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		resp.Resp = serviceResp
+		respJSON, err := json.Marshal(serviceResp)
+		if err != nil {
+			return nil, err
+		}
+		resp = NewResponse(respJSON)
 	case Services:
 		var servicesReq ServicesRequest
 		err = json.Unmarshal([]byte(req.Req), &servicesReq)
@@ -160,14 +172,18 @@ func (s *server) handleRequest(reqByte []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		resp.Resp = servicesResp
+		respJSON, err := json.Marshal(servicesResp)
+		if err != nil {
+			return nil, err
+		}
+		resp = NewResponse(respJSON)
 	}
 
 	return resp.prepare(), nil
 }
 
 func (s *server) register(req *RegisterRequest, resp *RegisterResponse) error {
-	id, err := s.storage.Register(req.Address, req.Port, req.Tags, req.Additional)
+	id, err := s.storage.Register(req.Name, req.Address, req.Port, req.Tags, req.Additional)
 	resp.Meta = *req
 	if err != nil {
 		resp.Error = err.Error()
@@ -194,10 +210,41 @@ func (s *server) deregister(req *DeregisterRequest, resp *DeregisterResponse) er
 }
 
 func (s *server) service(req *ServiceRequest, resp *ServiceResponse) error {
-	// @TODO filter service s.storage.Service(req.)
+	var ss ServiceSpec
+	var err error
+
+	// ID first manner
+	if req.ID != nil {
+		ss, err = s.storage.Service(req.ID, nil)
+	} else if req.Name != nil {
+		ss, err = s.storage.Service(nil, req.Name)
+	} else {
+		resp.Error = ErrServiceRequestInvalid.Error()
+		resp.Success = false
+		return ErrServiceRequestInvalid
+	}
+
+	resp.Meta = *req
+	if err != nil {
+		resp.Error = err.Error()
+		resp.Success = false
+		return err
+	}
+
+	resp.Service = ss
+	resp.Success = true
 	return nil
 }
 
 func (s *server) services(req *ServicesRequest, resp *ServicesResponse) error {
+	specs := s.storage.Services()
+	var container []ServiceSpec
+	for _, spec := range specs {
+		container = append(container, spec)
+	}
+	resp.Meta = *req
+	resp.Success = true
+	resp.Services = container
+
 	return nil
 }

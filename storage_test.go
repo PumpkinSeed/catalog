@@ -28,14 +28,14 @@ func TestStorage(t *testing.T) {
 	}()
 
 	storage := NewStorage()
-	id, err := storage.Register("localhost", httpPort, []string{"http", "web"}, nil)
+	id, err := storage.Register("webserver", "localhost", httpPort, []string{"http", "web"}, nil)
 
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = storage.SetupHealthcheck(id, 1*time.Second, func() error {
-		service, err := storage.Service(id)
+		service, err := storage.Service(&id, nil)
 		conn, err := net.Dial("tcp", service.Address)
 		if err != nil {
 			return fmt.Errorf("connection error: %s", err.Error())
@@ -52,7 +52,7 @@ func TestStorage(t *testing.T) {
 		t.Error(err)
 	}
 
-	service, err := storage.Service(id)
+	service, err := storage.Service(&id, nil)
 	if err != nil {
 		t.Error(err)
 	}

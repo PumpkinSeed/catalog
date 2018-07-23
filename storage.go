@@ -7,9 +7,9 @@ import (
 )
 
 type Storage interface {
-	Register(address string, port int, tags []string, additional interface{}) (identifier, error)
+	Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error)
 	Deregister(id identifier) error
-	Service(id identifier) (ServiceSpec, error)
+	Service(id *identifier, name *string) (ServiceSpec, error)
 	Services() map[identifier]ServiceSpec
 	SetupHealthcheck(id identifier, period time.Duration, f func() error) error
 	Healthcheck(id identifier) error
@@ -18,6 +18,7 @@ type Storage interface {
 // ServiceSpec represent the specification of a service
 type ServiceSpec struct {
 	ID      identifier `json:"id"`
+	Name    string     `json:"name"`
 	Host    string     `json:"host"`
 	Port    int        `json:"port"`
 	Address string     `json:"address"`
@@ -42,7 +43,7 @@ func NewStorage() Storage {
 	}
 }
 
-func (s *storage) Register(host string, port int, tags []string, additional interface{}) (identifier, error) {
+func (s *storage) Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error) {
 	s.Lock()
 	defer s.Unlock()
 	id := NewID()
@@ -65,9 +66,9 @@ func (s *storage) Deregister(id identifier) error {
 	return nil
 }
 
-func (s *storage) Service(id identifier) (ServiceSpec, error) {
+func (s *storage) Service(id *identifier, name *string) (ServiceSpec, error) {
 	s.RLock()
-	service, ok := s.services[id]
+	service, ok := s.services[*id]
 	s.RUnlock()
 	if !ok {
 		return ServiceSpec{}, ErrUndefinedService
@@ -106,5 +107,19 @@ func (s *storage) Healthcheck(id identifier) error {
 	if s.services[id].Healthcheck {
 		return s.services[id].HealthcheckFunc()
 	}
+	return nil
+}
+
+func (s *storage) findByName(name string) *ServiceSpec {
+	s.RLock()
+	defer s.RUnlock()
+	for _, service := range s.services {
+		if service.Name == name {
+			var s ServiceSpec
+			s = service
+			return &s
+		}
+	}
+
 	return nil
 }

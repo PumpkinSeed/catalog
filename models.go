@@ -8,7 +8,7 @@ type Request struct {
 }
 
 type Response struct {
-	Resp interface{} `json:"resp"`
+	Resp string `json:"resp"`
 }
 
 // prepare the response
@@ -21,12 +21,13 @@ func (r *Response) prepare() []byte {
 	return append(resp, []byte(delimiter)...)
 }
 
-func NewResponse(resp interface{}) Response {
-	return Response{Resp: resp}
+func NewResponse(resp []byte) Response {
+	return Response{Resp: string(resp)}
 }
 
 // RegisterRequest represent the register request to the server
 type RegisterRequest struct {
+	Name       string      `json:"name"`
 	Address    string      `json:"address"`
 	Port       int         `json:"port"`
 	Tags       []string    `json:"tags"`
@@ -53,7 +54,8 @@ func (r *RegisterResponse) prepare() []byte {
 
 // DeregisterRequest represent the deregister request to the server
 type DeregisterRequest struct {
-	ID identifier `json:"id"`
+	ID   identifier `json:"id"`
+	Name string     `json:"name"`
 }
 
 // DeregisterResponse represent the deregister response to the server
@@ -74,9 +76,8 @@ func (r *DeregisterResponse) prepare() []byte {
 }
 
 type ServiceRequest struct {
-	Address string   `json:"address"`
-	Port    int      `json:"port"`
-	Tags    []string `json:"tags"`
+	Name *string     `json:"name"`
+	ID   *identifier `json:"id"`
 }
 
 type ServiceResponse struct {
@@ -97,16 +98,13 @@ func (r *ServiceResponse) prepare() []byte {
 }
 
 type ServicesRequest struct {
-	Address string   `json:"address"`
-	Port    int      `json:"port"`
-	Tags    []string `json:"tags"`
 }
 
 type ServicesResponse struct {
-	Success  bool           `json:"success"`
-	Error    string         `json:"error"`
-	Meta     ServiceRequest `json:"meta"`
-	Services []ServiceSpec  `json:"services"`
+	Success  bool            `json:"success"`
+	Error    string          `json:"error"`
+	Meta     ServicesRequest `json:"meta"`
+	Services []ServiceSpec   `json:"services"`
 }
 
 // prepare the response
