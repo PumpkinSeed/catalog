@@ -9,8 +9,8 @@ import (
 type Storage interface {
 	Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error)
 	Deregister(id *identifier, name *string) error
-	Service(id *identifier, name *string) (ServiceSpec, error)
-	Services() map[identifier]ServiceSpec
+	Service(id *identifier, name *string) (*ServiceSpec, error)
+	Services() map[identifier]*ServiceSpec
 	SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error
 	Healthcheck() error
 }
@@ -33,15 +33,16 @@ type ServiceSpec struct {
 }
 
 type storage struct {
-	sync.RWMutex
-	services           map[identifier]ServiceSpec
+	mutex              sync.RWMutex
+	services           map[identifier]*ServiceSpec
 	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
 }
 
-func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error))) Storage {
+func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex sync.RWMutex) Storage {
 	return &storage{
-		services:           make(map[identifier]ServiceSpec),
+		services:           make(map[identifier]*ServiceSpec),
 		healthcheckStorage: healthcheckStorage,
+		mutex:              mutex,
 	}
 }
 
@@ -51,8 +52,8 @@ func (s *storage) Register(name string, host string, port int, tags []string, ad
 	if s.healthcheckStorage != nil {
 		period, hcFunc = s.healthcheckStorage(name)
 	}
-	s.Lock()
-	defer s.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	id := NewID()
 	service := ServiceSpec{
@@ -64,15 +65,15 @@ func (s *storage) Register(name string, host string, port int, tags []string, ad
 		Tags:       tags,
 		Additional: additional,
 	}
-	s.services[id] = service
+	s.services[id] = &service
 
 	s.SetupHealthcheck(id, period, hcFunc)
 	return id, nil
 }
 
 func (s *storage) Deregister(id *identifier, name *string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	// ID first manner
 	if id != nil {
@@ -87,11 +88,11 @@ func (s *storage) Deregister(id *identifier, name *string) error {
 	return ErrServiceRequestInvalid
 }
 
-func (s *storage) Service(id *identifier, name *string) (ServiceSpec, error) {
-	var service ServiceSpec
+func (s *storage) Service(id *identifier, name *string) (*ServiceSpec, error) {
+	var service *ServiceSpec
 	var ok bool
 
-	s.RLock()
+	s.mutex.RLock()
 
 	// ID first manner
 	if id != nil {
@@ -102,16 +103,16 @@ func (s *storage) Service(id *identifier, name *string) (ServiceSpec, error) {
 	} else {
 		return service, ErrServiceRequestInvalid
 	}
-	s.RUnlock()
+	s.mutex.RUnlock()
 	if !ok {
-		return ServiceSpec{}, ErrUndefinedService
+		return &ServiceSpec{}, ErrUndefinedService
 	}
 	return service, nil
 }
 
-func (s *storage) Services() map[identifier]ServiceSpec {
-	s.RLock()
-	defer s.RUnlock()
+func (s *storage) Services() map[identifier]*ServiceSpec {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	return s.services
 }
 
@@ -143,17 +144,17 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 }
 
 func (s *storage) Healthcheck() error {
-	return healthcheck(&s.services)
+	return healthcheck(s.services)
 }
 
 func (s *storage) findByName(name string) *ServiceSpec {
-	s.RLock()
-	defer s.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 	for _, service := range s.services {
 		if service.Name == name {
-			var s ServiceSpec
-			s = service
-			return &s
+			var ss *ServiceSpec
+			ss = service
+			return ss
 		}
 	}
 

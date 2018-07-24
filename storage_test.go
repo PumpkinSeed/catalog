@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -27,7 +28,8 @@ func TestStorage(t *testing.T) {
 		}
 	}()
 
-	storage := NewStorage(nil)
+	var mutex sync.RWMutex
+	storage := NewStorage(nil, mutex)
 	id, err := storage.Register("webserver", "localhost", httpPort, []string{"http", "web"}, nil)
 
 	if err != nil {

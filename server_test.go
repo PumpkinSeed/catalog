@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 )
 
@@ -12,6 +13,7 @@ var binAddr = "127.0.0.1:7777"
 var serv Server
 var testCounter = 2
 var idOfServices []identifier
+var mutex sync.RWMutex
 var testServices = []*struct {
 	id         identifier
 	name       string
@@ -42,8 +44,9 @@ var testServices = []*struct {
 }
 
 func init() {
+
 	go func() {
-		serv = NewServer(binAddr, nil)
+		serv = NewServer(binAddr, nil, mutex)
 		err := serv.Listen()
 		if err != nil {
 			fmt.Println(err)

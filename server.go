@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -35,10 +36,10 @@ type server struct {
 	closeCh  chan bool
 }
 
-func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error))) Server {
+func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex sync.RWMutex) Server {
 	closeCh := make(chan bool, 1)
 	s := new(server)
-	s.storage = NewStorage(healthcheckStorage)
+	s.storage = NewStorage(healthcheckStorage, mutex)
 	s.bindAddr = bindAddr
 	s.closeCh = closeCh
 
@@ -211,7 +212,7 @@ func (s *server) deregister(req *DeregisterRequest, resp *DeregisterResponse) er
 }
 
 func (s *server) service(req *ServiceRequest, resp *ServiceResponse) error {
-	var ss ServiceSpec
+	var ss *ServiceSpec
 	var err error
 
 	// ID first manner
@@ -230,7 +231,7 @@ func (s *server) service(req *ServiceRequest, resp *ServiceResponse) error {
 		return err
 	}
 
-	resp.Service = ss
+	resp.Service = *ss
 	resp.Success = true
 	return nil
 }
@@ -239,7 +240,7 @@ func (s *server) services(req *ServicesRequest, resp *ServicesResponse) error {
 	specs := s.storage.Services()
 	var container []ServiceSpec
 	for _, spec := range specs {
-		container = append(container, spec)
+		container = append(container, *spec)
 	}
 	resp.Meta = *req
 	resp.Success = true
