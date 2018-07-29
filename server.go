@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"sync"
 	"time"
@@ -52,6 +53,16 @@ func (s *server) Listen() error {
 		fmt.Println("0", err)
 		return err
 	}
+
+	go func() {
+		for {
+			err := s.storage.Healthcheck()
+			if err != nil {
+				log.Print(err)
+				s.Close()
+			}
+		}
+	}()
 
 	for {
 		select {
