@@ -1,8 +1,13 @@
 package catalog
 
-// @TODO setup healthcheck chain
-func healthcheck(services map[identifier]*ServiceSpec) error {
+import (
+	"sync"
+)
 
+// @TODO setup healthcheck chain
+func healthcheck(services map[identifier]*ServiceSpec, mutex sync.RWMutex) error {
+
+	//mutex.Lock()
 	for _, service := range services {
 		//go func() {}()
 		// @TODO put it all into goroutines, channel if err
@@ -12,9 +17,12 @@ func healthcheck(services map[identifier]*ServiceSpec) error {
 				return err
 			}
 
+			mutex.Lock()
 			service.IsAlive = alive
+			mutex.Unlock()
 		}
 	}
+	//mutex.Unlock()
 
 	return nil
 }

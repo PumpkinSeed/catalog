@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -91,7 +92,8 @@ var serviceSpecs = map[identifier]*ServiceSpec{
 func TestHealthcheck(t *testing.T) {
 	startServices(t)
 
-	err := healthcheck(serviceSpecs)
+	mutex := sync.RWMutex{}
+	err := healthcheck(serviceSpecs, mutex)
 	if err != nil {
 		t.Error(err)
 	}

@@ -61,6 +61,7 @@ func (s *server) Listen() error {
 				log.Print(err)
 				s.Close()
 			}
+			//time.Sleep(s.storage.)
 		}
 	}()
 

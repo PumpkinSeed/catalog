@@ -36,12 +36,14 @@ type storage struct {
 	mutex              sync.RWMutex
 	services           map[identifier]*ServiceSpec
 	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
+	healthcheckMutex   sync.RWMutex
 }
 
 func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex sync.RWMutex) Storage {
 	return &storage{
 		services:           make(map[identifier]*ServiceSpec),
 		healthcheckStorage: healthcheckStorage,
+		healthcheckMutex:   sync.RWMutex{},
 		mutex:              mutex,
 	}
 }
@@ -144,7 +146,7 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 }
 
 func (s *storage) Healthcheck() error {
-	return healthcheck(s.services)
+	return healthcheck(s.services, s.healthcheckMutex)
 }
 
 func (s *storage) findByName(name string) *ServiceSpec {
