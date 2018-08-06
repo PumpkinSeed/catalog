@@ -11,8 +11,8 @@ type Storage interface {
 	Deregister(id *identifier, name *string) error
 	Service(id *identifier, name *string) (*ServiceSpec, error)
 	Services() map[identifier]*ServiceSpec
-	SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error
-	Healthcheck() error
+	SetupHealthcheck(id identifier, f func() (bool, error)) error
+	Healthcheck(healthcheckMutex *sync.RWMutex) error
 	HealthcheckPeriod() time.Duration
 }
 
@@ -25,10 +25,9 @@ type ServiceSpec struct {
 	Address string     `json:"address"`
 	Tags    []string   `json:"tags"`
 
-	Healthcheck       bool                 `json:"healthcheck"`
-	HealthcheckFunc   func() (bool, error) `json:"-"`
-	HealthcheckPeriod time.Duration        `json:"healthcheck_period"`
-	IsAlive           bool                 `json:"is_alive"`
+	Healthcheck     bool                 `json:"healthcheck"`
+	HealthcheckFunc func() (bool, error) `json:"-"`
+	IsAlive         bool                 `json:"is_alive"`
 
 	Additional interface{}
 }
@@ -38,14 +37,12 @@ type storage struct {
 	services           map[identifier]*ServiceSpec
 	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
 	healthcheckPeriod  time.Duration
-	healthcheckMutex   *sync.RWMutex
 }
 
 func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), healthcheckPeriod time.Duration, mutex *sync.RWMutex) Storage {
 	return &storage{
 		services:           make(map[identifier]*ServiceSpec),
 		healthcheckStorage: healthcheckStorage,
-		healthcheckMutex:   &sync.RWMutex{},
 		healthcheckPeriod:  healthcheckPeriod,
 		mutex:              mutex,
 	}
@@ -53,9 +50,8 @@ func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (boo
 
 func (s *storage) Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error) {
 	var hcFunc func() (bool, error)
-	var period time.Duration
 	if s.healthcheckStorage != nil {
-		period, hcFunc = s.healthcheckStorage(name)
+		_, hcFunc = s.healthcheckStorage(name)
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -72,7 +68,7 @@ func (s *storage) Register(name string, host string, port int, tags []string, ad
 	}
 	s.services[id] = &service
 
-	s.SetupHealthcheck(id, period, hcFunc)
+	s.SetupHealthcheck(id, hcFunc)
 	return id, nil
 }
 
@@ -121,7 +117,7 @@ func (s *storage) Services() map[identifier]*ServiceSpec {
 	return s.services
 }
 
-func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error {
+func (s *storage) SetupHealthcheck(id identifier, f func() (bool, error)) error {
 	// Check service before setup healthcheck
 	if f == nil {
 		return nil
@@ -140,7 +136,6 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 	}
 
 	service.Healthcheck = true
-	service.HealthcheckPeriod = period
 	service.HealthcheckFunc = f
 
 	s.services[id] = service
@@ -148,8 +143,8 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 	return nil
 }
 
-func (s *storage) Healthcheck() error {
-	return healthcheck(s.services, s.healthcheckMutex)
+func (s *storage) Healthcheck(healthcheckMutex *sync.RWMutex) error {
+	return healthcheck(s.services, healthcheckMutex)
 }
 
 func (s *storage) HealthcheckPeriod() time.Duration {

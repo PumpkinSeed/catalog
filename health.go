@@ -6,23 +6,42 @@ import (
 
 // @TODO setup healthcheck chain
 func healthcheck(services map[identifier]*ServiceSpec, mutex *sync.RWMutex) error {
-
+	var errChan = make(chan error)
+	var counter = 0
 	for _, service := range services {
+		counter++
+		go func(service *ServiceSpec) {
+			defer func() {
+				counter--
+			}()
+			if service.Healthcheck {
+				alive, err := service.HealthcheckFunc()
+				if err != nil {
+					errChan <- err
+					return
+				}
 
-		//go func() {}()
-		// @TODO put it all into goroutines, channel if err
-		if service.Healthcheck {
-			alive, err := service.HealthcheckFunc()
-			if err != nil {
-				return err
+				mutex.Lock()
+				service.IsAlive = alive
+				mutex.Unlock()
 			}
+			return
+		}(service)
+	}
 
-			mutex.Lock()
-			service.IsAlive = alive
-			mutex.Unlock()
+	go func() {
+		for {
+			if counter == 0 {
+				errChan <- nil
+				break
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errChan:
+			return err
 		}
 	}
-	//mutex.Unlock()
-
-	return nil
 }

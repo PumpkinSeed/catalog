@@ -32,10 +32,10 @@ type Server interface {
 // server is the main handler struct
 type server struct {
 	// add logger
-	bindAddr      string
-	storage       Storage
-	closeCh       chan bool
-	listenerMutex *sync.Mutex
+	bindAddr         string
+	storage          Storage
+	closeCh          chan bool
+	healthcheckMutex *sync.RWMutex
 }
 
 func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex *sync.RWMutex) Server {
@@ -44,7 +44,7 @@ func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Durat
 	s.storage = NewStorage(healthcheckStorage, 2000*time.Millisecond, mutex)
 	s.bindAddr = bindAddr
 	s.closeCh = closeCh
-	s.listenerMutex = &sync.Mutex{}
+	s.healthcheckMutex = mutex
 
 	return s
 }
@@ -58,13 +58,14 @@ func (s *server) Listen() error {
 
 	go func() {
 		for {
-			//s.listenerMutex.Lock()
-			err := s.storage.Healthcheck()
-			//s.listenerMutex.Unlock()
+			err := s.storage.Healthcheck(s.healthcheckMutex)
 			if err != nil {
 				log.Print(err)
 				s.Close()
 			}
+
+			// 10ms delay to stable provide concurrent map read and write
+			time.Sleep(10 * time.Millisecond)
 			time.Sleep(s.storage.HealthcheckPeriod())
 		}
 	}()
@@ -77,9 +78,8 @@ func (s *server) Listen() error {
 		default:
 		}
 
-		//s.listenerMutex.Lock()
 		conn, err := ln.Accept()
-		//s.listenerMutex.Unlock()
+
 		if err != nil && err != io.EOF {
 			fmt.Println("1", err)
 			return err
@@ -90,8 +90,6 @@ func (s *server) Listen() error {
 			fmt.Println("2", err)
 			return err
 		}
-
-		//fmt.Print("Message Received:", string(msg))
 
 		resp, err := s.handleRequest(msg)
 		if err != nil {
@@ -104,10 +102,7 @@ func (s *server) Listen() error {
 			fmt.Println("4", err)
 			return err
 		}
-		//fmt.Printf("Bytes written: %d\n", n)
 	}
-
-	return nil
 }
 
 func (s *server) Close() {

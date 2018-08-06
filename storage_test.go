@@ -36,7 +36,7 @@ func TestStorage(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = storage.SetupHealthcheck(id, 1*time.Second, func() (bool, error) {
+	err = storage.SetupHealthcheck(id, func() (bool, error) {
 		service, err := storage.Service(&id, nil)
 		conn, err := net.Dial("tcp", service.Address)
 		if err != nil {
@@ -49,7 +49,7 @@ func TestStorage(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = storage.Healthcheck()
+	err = storage.Healthcheck(mutex)
 	if err != nil {
 		t.Error(err)
 	}
