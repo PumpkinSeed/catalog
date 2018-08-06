@@ -32,17 +32,19 @@ type Server interface {
 // server is the main handler struct
 type server struct {
 	// add logger
-	bindAddr string
-	storage  Storage
-	closeCh  chan bool
+	bindAddr      string
+	storage       Storage
+	closeCh       chan bool
+	listenerMutex *sync.Mutex
 }
 
-func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex sync.RWMutex) Server {
+func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex *sync.RWMutex) Server {
 	closeCh := make(chan bool, 1)
 	s := new(server)
-	s.storage = NewStorage(healthcheckStorage, mutex)
+	s.storage = NewStorage(healthcheckStorage, 2000*time.Millisecond, mutex)
 	s.bindAddr = bindAddr
 	s.closeCh = closeCh
+	s.listenerMutex = &sync.Mutex{}
 
 	return s
 }
@@ -56,12 +58,14 @@ func (s *server) Listen() error {
 
 	go func() {
 		for {
+			//s.listenerMutex.Lock()
 			err := s.storage.Healthcheck()
+			//s.listenerMutex.Unlock()
 			if err != nil {
 				log.Print(err)
 				s.Close()
 			}
-			//time.Sleep(s.storage.)
+			time.Sleep(s.storage.HealthcheckPeriod())
 		}
 	}()
 
@@ -73,7 +77,9 @@ func (s *server) Listen() error {
 		default:
 		}
 
+		//s.listenerMutex.Lock()
 		conn, err := ln.Accept()
+		//s.listenerMutex.Unlock()
 		if err != nil && err != io.EOF {
 			fmt.Println("1", err)
 			return err

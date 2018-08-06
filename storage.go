@@ -13,6 +13,7 @@ type Storage interface {
 	Services() map[identifier]*ServiceSpec
 	SetupHealthcheck(id identifier, period time.Duration, f func() (bool, error)) error
 	Healthcheck() error
+	HealthcheckPeriod() time.Duration
 }
 
 // ServiceSpec represent the specification of a service
@@ -33,17 +34,19 @@ type ServiceSpec struct {
 }
 
 type storage struct {
-	mutex              sync.RWMutex
+	mutex              *sync.RWMutex
 	services           map[identifier]*ServiceSpec
 	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
-	healthcheckMutex   sync.RWMutex
+	healthcheckPeriod  time.Duration
+	healthcheckMutex   *sync.RWMutex
 }
 
-func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex sync.RWMutex) Storage {
+func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), healthcheckPeriod time.Duration, mutex *sync.RWMutex) Storage {
 	return &storage{
 		services:           make(map[identifier]*ServiceSpec),
 		healthcheckStorage: healthcheckStorage,
-		healthcheckMutex:   sync.RWMutex{},
+		healthcheckMutex:   &sync.RWMutex{},
+		healthcheckPeriod:  healthcheckPeriod,
 		mutex:              mutex,
 	}
 }
@@ -147,6 +150,10 @@ func (s *storage) SetupHealthcheck(id identifier, period time.Duration, f func()
 
 func (s *storage) Healthcheck() error {
 	return healthcheck(s.services, s.healthcheckMutex)
+}
+
+func (s *storage) HealthcheckPeriod() time.Duration {
+	return s.healthcheckPeriod
 }
 
 func (s *storage) findByName(name string) *ServiceSpec {

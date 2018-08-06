@@ -28,8 +28,8 @@ func TestStorage(t *testing.T) {
 		}
 	}()
 
-	var mutex sync.RWMutex
-	storage := NewStorage(nil, mutex)
+	var mutex = &sync.RWMutex{}
+	storage := NewStorage(nil, 2000*time.Millisecond, mutex)
 	id, err := storage.Register("webserver", "localhost", httpPort, []string{"http", "web"}, nil)
 
 	if err != nil {

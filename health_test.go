@@ -93,7 +93,7 @@ func TestHealthcheck(t *testing.T) {
 	startServices(t)
 
 	mutex := sync.RWMutex{}
-	err := healthcheck(serviceSpecs, mutex)
+	err := healthcheck(serviceSpecs, &mutex)
 	if err != nil {
 		t.Error(err)
 	}
@@ -105,12 +105,15 @@ func TestHealthcheck(t *testing.T) {
 }
 
 func startServices(t *testing.T) {
+	var mutex = &sync.Mutex{}
+
 	for _, service := range services {
 		if !service.alive {
 			continue
 		}
 
 		go func(addr string) {
+
 			l, err := net.Listen("tcp", addr)
 			if err != nil {
 				t.Errorf("Error listening: %s", err.Error())
@@ -121,7 +124,9 @@ func startServices(t *testing.T) {
 			//fmt.Println("Listening on " + CONN_HOST + ":" + CONN_PORT)
 			for {
 				// Listen for an incoming connection.
+				mutex.Lock()
 				conn, err := l.Accept()
+				mutex.Unlock()
 				if err != nil {
 					t.Errorf("Error accepting: %s", err.Error())
 				}

@@ -5,10 +5,10 @@ import (
 )
 
 // @TODO setup healthcheck chain
-func healthcheck(services map[identifier]*ServiceSpec, mutex sync.RWMutex) error {
+func healthcheck(services map[identifier]*ServiceSpec, mutex *sync.RWMutex) error {
 
-	//mutex.Lock()
 	for _, service := range services {
+
 		//go func() {}()
 		// @TODO put it all into goroutines, channel if err
 		if service.Healthcheck {

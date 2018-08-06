@@ -13,7 +13,7 @@ var binAddr = "127.0.0.1:7777"
 var serv Server
 var testCounter = 2
 var idOfServices []identifier
-var mutex sync.RWMutex
+var mutex = &sync.RWMutex{}
 var testServices = []*struct {
 	id         identifier
 	name       string
@@ -52,6 +52,7 @@ func init() {
 			fmt.Println(err)
 		}
 	}()
+
 	go func() {
 		for {
 			if testCounter > 0 {
