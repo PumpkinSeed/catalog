@@ -38,7 +38,7 @@ type RegisterRequest struct {
 type RegisterResponse struct {
 	Success bool            `json:"success"`
 	Error   string          `json:"error"`
-	ID      identifier      `json:"id"`
+	ID      Identifier      `json:"id"`
 	Meta    RegisterRequest `json:"meta"`
 }
 
@@ -54,7 +54,7 @@ func (r *RegisterResponse) prepare() []byte {
 
 // DeregisterRequest represent the deregister request to the server
 type DeregisterRequest struct {
-	ID   *identifier `json:"id"`
+	ID   *Identifier `json:"id"`
 	Name *string     `json:"name"`
 }
 
@@ -77,7 +77,7 @@ func (r *DeregisterResponse) prepare() []byte {
 
 type ServiceRequest struct {
 	Name *string     `json:"name"`
-	ID   *identifier `json:"id"`
+	ID   *Identifier `json:"id"`
 }
 
 type ServiceResponse struct {

@@ -100,6 +100,14 @@ func (a *catalogapi) translateRegisterRequest(req *api.CatalogRegistration, rr *
 	return nil
 }
 
+func (a *catalogapi) translateDeregisterRequest(req *api.CatalogDeregistration, dr *catalog.DeregisterRequest) error {
+	id := catalog.Identifier(12)
+	dr.Name = &req.Address // @TODO ???
+	dr.ID = &id            // @TODO ????
+
+	return nil
+}
+
 func (a *catalogapi) do(req catalog.Request) (*catalog.Response, error) {
 	rJSON, err := json.Marshal(req)
 	if err != nil {

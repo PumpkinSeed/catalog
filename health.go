@@ -5,7 +5,7 @@ import (
 )
 
 // @TODO setup healthcheck chain
-func healthcheck(services map[identifier]*ServiceSpec, mutex *sync.RWMutex) error {
+func healthcheck(services map[Identifier]*ServiceSpec, mutex *sync.RWMutex) error {
 	var errChan = make(chan error)
 	var counter = 0
 	for _, service := range services {

@@ -6,18 +6,18 @@ import (
 	"time"
 )
 
-type identifier uint
+type Identifier uint
 
-func NewID() identifier {
-	return identifier(random())
+func NewID() Identifier {
+	return Identifier(random())
 }
 
-func NewIDFromString(id string) (identifier, error) {
+func NewIDFromString(id string) (Identifier, error) {
 	uintID, err := strconv.ParseUint(id, 10, 10)
-	return identifier(uintID), err
+	return Identifier(uintID), err
 }
 
-func (i *identifier) String() string {
+func (i *Identifier) String() string {
 	return strconv.FormatUint(uint64(*i), 10)
 }
 

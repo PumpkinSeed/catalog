@@ -7,18 +7,18 @@ import (
 )
 
 type Storage interface {
-	Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error)
-	Deregister(id *identifier, name *string) error
-	Service(id *identifier, name *string) (*ServiceSpec, error)
-	Services() map[identifier]*ServiceSpec
-	SetupHealthcheck(id identifier, f func() (bool, error)) error
+	Register(name string, host string, port int, tags []string, additional interface{}) (Identifier, error)
+	Deregister(id *Identifier, name *string) error
+	Service(id *Identifier, name *string) (*ServiceSpec, error)
+	Services() map[Identifier]*ServiceSpec
+	SetupHealthcheck(id Identifier, f func() (bool, error)) error
 	Healthcheck(healthcheckMutex *sync.RWMutex) error
 	HealthcheckPeriod() time.Duration
 }
 
 // ServiceSpec represent the specification of a service
 type ServiceSpec struct {
-	ID      identifier `json:"id"`
+	ID      Identifier `json:"id"`
 	Name    string     `json:"name"`
 	Host    string     `json:"host"`
 	Port    int        `json:"port"`
@@ -34,21 +34,21 @@ type ServiceSpec struct {
 
 type storage struct {
 	mutex              *sync.RWMutex
-	services           map[identifier]*ServiceSpec
+	services           map[Identifier]*ServiceSpec
 	healthcheckStorage func(name string) (time.Duration, func() (bool, error))
 	healthcheckPeriod  time.Duration
 }
 
 func NewStorage(healthcheckStorage func(name string) (time.Duration, func() (bool, error)), healthcheckPeriod time.Duration, mutex *sync.RWMutex) Storage {
 	return &storage{
-		services:           make(map[identifier]*ServiceSpec),
+		services:           make(map[Identifier]*ServiceSpec),
 		healthcheckStorage: healthcheckStorage,
 		healthcheckPeriod:  healthcheckPeriod,
 		mutex:              mutex,
 	}
 }
 
-func (s *storage) Register(name string, host string, port int, tags []string, additional interface{}) (identifier, error) {
+func (s *storage) Register(name string, host string, port int, tags []string, additional interface{}) (Identifier, error) {
 	var hcFunc func() (bool, error)
 	if s.healthcheckStorage != nil {
 		_, hcFunc = s.healthcheckStorage(name)
@@ -72,7 +72,7 @@ func (s *storage) Register(name string, host string, port int, tags []string, ad
 	return id, nil
 }
 
-func (s *storage) Deregister(id *identifier, name *string) error {
+func (s *storage) Deregister(id *Identifier, name *string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -89,7 +89,7 @@ func (s *storage) Deregister(id *identifier, name *string) error {
 	return ErrServiceRequestInvalid
 }
 
-func (s *storage) Service(id *identifier, name *string) (*ServiceSpec, error) {
+func (s *storage) Service(id *Identifier, name *string) (*ServiceSpec, error) {
 	var service *ServiceSpec
 	var ok bool
 
@@ -111,13 +111,13 @@ func (s *storage) Service(id *identifier, name *string) (*ServiceSpec, error) {
 	return service, nil
 }
 
-func (s *storage) Services() map[identifier]*ServiceSpec {
+func (s *storage) Services() map[Identifier]*ServiceSpec {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.services
 }
 
-func (s *storage) SetupHealthcheck(id identifier, f func() (bool, error)) error {
+func (s *storage) SetupHealthcheck(id Identifier, f func() (bool, error)) error {
 	// Check service before setup healthcheck
 	if f == nil {
 		return nil
