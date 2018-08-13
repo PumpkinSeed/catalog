@@ -39,6 +39,7 @@ type server struct {
 }
 
 func NewServer(bindAddr string, healthcheckStorage func(name string) (time.Duration, func() (bool, error)), mutex *sync.RWMutex) Server {
+	// @TODO handle if mutex is nil
 	closeCh := make(chan bool, 1)
 	s := new(server)
 	s.storage = NewStorage(healthcheckStorage, 2000*time.Millisecond, mutex)

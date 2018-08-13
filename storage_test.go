@@ -13,7 +13,7 @@ import (
 
 func TestStorage(t *testing.T) {
 	var httpPort = 8082
-	var id identifier
+	var id Identifier
 
 	go func() {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

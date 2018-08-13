@@ -12,10 +12,10 @@ import (
 var binAddr = "127.0.0.1:7777"
 var serv Server
 var testCounter = 2
-var idOfServices []identifier
+var idOfServices []Identifier
 var mutex = &sync.RWMutex{}
 var testServices = []*struct {
-	id         identifier
+	id         Identifier
 	name       string
 	host       string
 	port       int

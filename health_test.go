@@ -10,7 +10,7 @@ import (
 const localhost = "127.0.0.1"
 
 var services = []struct {
-	id    identifier
+	id    Identifier
 	name  string
 	host  string
 	port  string
@@ -46,7 +46,7 @@ var services = []struct {
 	},
 }
 
-var serviceSpecs = map[identifier]*ServiceSpec{
+var serviceSpecs = map[Identifier]*ServiceSpec{
 	services[0].id: {
 		ID:              services[0].id,
 		Name:            "webserver",
