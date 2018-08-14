@@ -18,7 +18,7 @@ type Catalog interface {
 	Register(name string, host string, port int, tags []string, additional interface{}) (string, error)
 	Deregister(id *string, name *string) error
 	Service(id *string, name *string) (*catalog.ServiceSpec, error)
-	Services() map[catalog.Identifier]*catalog.ServiceSpec
+	Services() ([]catalog.ServiceSpec, error)
 }
 
 type catalogapi struct {
@@ -98,11 +98,67 @@ func (c *catalogapi) Deregister(id *string, name *string) error {
 	return errors.New(respDeregister.Error)
 }
 func (c *catalogapi) Service(id *string, name *string) (*catalog.ServiceSpec, error) {
+	var sr = catalog.ServiceRequest{
+		ID:   (*catalog.Identifier)(unsafe.Pointer(&id)),
+		Name: name,
+	}
 
-	return nil, nil
+	srJSON, err := json.Marshal(sr)
+	if err != nil {
+		return nil, err
+	}
+
+	var mainRequest = catalog.Request{
+		Cmd: catalog.Service,
+		Req: string(srJSON),
+	}
+
+	resp, err := c.do(mainRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	var respService catalog.ServiceResponse
+	err = json.Unmarshal([]byte(resp.Resp), &respService)
+	if err != nil {
+		return nil, err
+	}
+
+	if respService.Success {
+		return &respService.Service, nil
+	}
+
+	return nil, errors.New(respService.Error)
 }
-func (c *catalogapi) Services() map[catalog.Identifier]*catalog.ServiceSpec {
-	return nil
+func (c *catalogapi) Services() ([]catalog.ServiceSpec, error) {
+	var sr = catalog.ServicesRequest{}
+
+	srJSON, err := json.Marshal(sr)
+	if err != nil {
+		return nil, err
+	}
+
+	var mainRequest = catalog.Request{
+		Cmd: catalog.Services,
+		Req: string(srJSON),
+	}
+
+	resp, err := c.do(mainRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	var respServices catalog.ServicesResponse
+	err = json.Unmarshal([]byte(resp.Resp), &respServices)
+	if err != nil {
+		return nil, err
+	}
+
+	if respServices.Success {
+		return respServices.Services, nil
+	}
+
+	return nil, errors.New(respServices.Error)
 }
 
 func (c *catalogapi) do(req catalog.Request) (*catalog.Response, error) {
