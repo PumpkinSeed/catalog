@@ -113,6 +113,24 @@ func TestTrueAliveServices(t *testing.T) {
 	}
 }
 
+func TestDeregister(t *testing.T) {
+	err := testCatalogInstance.Deregister(nil, &testServices[1].name)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestServicesAfterDeregister(t *testing.T) {
+	services, err := testCatalogInstance.Services()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(services) != 2 {
+		t.Error("There should be 2 service in the storage no more")
+	}
+}
+
 func startServices() {
 	for _, service := range testServices {
 		go func(addr string, closeChan chan bool) {

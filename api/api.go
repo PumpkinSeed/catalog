@@ -66,9 +66,21 @@ func (c *catalogapi) Register(name string, host string, port int, tags []string,
 
 }
 func (c *catalogapi) Deregister(id *string, name *string) error {
-	var dr = catalog.DeregisterRequest{
-		ID:   (*catalog.Identifier)(unsafe.Pointer(&id)),
-		Name: name,
+	var idUint uint64
+	var err error
+	var dr = catalog.DeregisterRequest{}
+	if id != nil {
+		idUint, err = strconv.ParseUint(*id, 10, 64)
+		if err != nil {
+			return err
+		}
+		dr = catalog.DeregisterRequest{
+			ID: (*catalog.Identifier)(unsafe.Pointer(&idUint)),
+		}
+	} else if name != nil {
+		dr = catalog.DeregisterRequest{
+			Name: name,
+		}
 	}
 
 	drJSON, err := json.Marshal(dr)
@@ -100,9 +112,13 @@ func (c *catalogapi) Deregister(id *string, name *string) error {
 }
 func (c *catalogapi) Service(id *string, name *string) (*catalog.ServiceSpec, error) {
 	var idUint uint64
+	var err error
 	var sr catalog.ServiceRequest
 	if id != nil {
-		idUint, _ = strconv.ParseUint(*id, 10, 64)
+		idUint, err = strconv.ParseUint(*id, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 		sr = catalog.ServiceRequest{
 			ID: (*catalog.Identifier)(unsafe.Pointer(&idUint)),
 		}
