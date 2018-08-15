@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -82,8 +81,36 @@ func TestServices(t *testing.T) {
 		t.Error(err)
 	}
 
-	res, _ := json.Marshal(services)
-	fmt.Println(string(res))
+	for _, service := range services {
+		if service.IsAlive != true {
+			t.Errorf("%s should be alive", service.Name)
+		}
+	}
+
+	testServices[1].closeChan <- true
+	time.Sleep(4 * time.Second)
+}
+
+func TestFalseAliveServices(t *testing.T) {
+	service, err := testCatalogInstance.Service(nil, &testServices[1].name)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if service.IsAlive != false {
+		t.Error("Service shouldn't be alive.")
+	}
+}
+
+func TestTrueAliveServices(t *testing.T) {
+	service, err := testCatalogInstance.Service(&testServices[0].id, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if service.IsAlive != true {
+		t.Error("Service should be alive.")
+	}
 }
 
 func startServices() {
@@ -98,13 +125,15 @@ func startServices() {
 			for {
 				select {
 				case <-closeChan:
-					break
+					fmt.Println("released")
+					return
+				default:
+					conn, err := l.Accept()
+					if err != nil {
+						panic(err)
+					}
+					conn.Close()
 				}
-				conn, err := l.Accept()
-				if err != nil {
-					panic(err)
-				}
-				conn.Close()
 			}
 		}(service.host+":"+strconv.Itoa(service.port), service.closeChan)
 	}
@@ -125,7 +154,6 @@ func hcStorage(name string) (time.Duration, func() (bool, error)) {
 
 func getCommonHCFunc(address string) func() (bool, error) {
 	return func() (bool, error) {
-		fmt.Println(address)
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
 			return false, nil
@@ -136,7 +164,7 @@ func getCommonHCFunc(address string) func() (bool, error) {
 		if err != nil {
 			return false, nil
 		}
-		fmt.Println("true")
+		//fmt.Println(address)
 
 		return true, nil
 	}

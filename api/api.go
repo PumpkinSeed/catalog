@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"unsafe"
 
 	"github.com/PumpkinSeed/catalog"
@@ -59,7 +60,7 @@ func (c *catalogapi) Register(name string, host string, port int, tags []string,
 	}
 
 	if respRegister.Success {
-		return string(respRegister.ID), nil
+		return strconv.FormatUint(uint64(respRegister.ID), 10), nil
 	}
 	return "", errors.New(respRegister.Error)
 
@@ -98,9 +99,17 @@ func (c *catalogapi) Deregister(id *string, name *string) error {
 	return errors.New(respDeregister.Error)
 }
 func (c *catalogapi) Service(id *string, name *string) (*catalog.ServiceSpec, error) {
-	var sr = catalog.ServiceRequest{
-		ID:   (*catalog.Identifier)(unsafe.Pointer(&id)),
-		Name: name,
+	var idUint uint64
+	var sr catalog.ServiceRequest
+	if id != nil {
+		idUint, _ = strconv.ParseUint(*id, 10, 64)
+		sr = catalog.ServiceRequest{
+			ID: (*catalog.Identifier)(unsafe.Pointer(&idUint)),
+		}
+	} else if name != nil {
+		sr = catalog.ServiceRequest{
+			Name: name,
+		}
 	}
 
 	srJSON, err := json.Marshal(sr)
