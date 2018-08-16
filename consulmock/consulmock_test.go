@@ -12,7 +12,7 @@ import (
 
 var (
 	testCatalogInstance Catalog
-	binAddr             = "127.0.0.1:7777"
+	binAddr             = "127.0.0.1:8889"
 	testServices        = []*struct {
 		name       string
 		host       string

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var binAddr = "127.0.0.1:7777"
+var binAddr = "127.0.0.1:8878"
 var serv Server
 var testCounter = 2
 var idOfServices []Identifier
