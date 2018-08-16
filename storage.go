@@ -152,8 +152,6 @@ func (s *storage) HealthcheckPeriod() time.Duration {
 }
 
 func (s *storage) findByName(name string) *ServiceSpec {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
 	for _, service := range s.services {
 		if service.Name == name {
 			var ss *ServiceSpec
