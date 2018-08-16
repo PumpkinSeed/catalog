@@ -48,4 +48,41 @@ There is only Go API implementation for the catalog, but feel free the compile i
 
 #### Healthcheck storage
 
-Later...
+The Healthcheck storage is a `key => function` storage, provide manageable storage for the healthchecks of the services.
+
+```
+// Pass the hcStorage, it gets a name and returns the healthcheck function
+// the mutex used for healthcheck thread-safety
+var server = catalog.NewServer(binAddr, hcStorage, &sync.RWMutex{})
+
+func hcStorage(name string) (time.Duration, func() (bool, error)) {
+	switch name {
+	case "webserver":
+		return 2 * time.Second, getCommonHCFunc("127.0.0.1:8008")
+	case "webserver2":
+		return 2 * time.Second, getCommonHCFunc("127.0.0.1:8003")
+	case "auth":
+		return 2 * time.Second, getCommonHCFunc("127.0.0.1:8018")
+	}
+
+	return 2 * time.Second, nil
+}
+
+func getCommonHCFunc(address string) func() (bool, error) {
+	return func() (bool, error) {
+		conn, err := net.Dial("tcp", address)
+		if err != nil {
+			return false, nil
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(1 * time.Second))
+		if err != nil {
+			return false, nil
+		}
+		//fmt.Println(address)
+
+		return true, nil
+	}
+}
+```
